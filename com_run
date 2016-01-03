@@ -1,0 +1,5 @@
+#bin/bash
+
+gcc -o adom adom.c && ./adom
+
+exit 0
