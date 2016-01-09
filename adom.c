@@ -30,7 +30,7 @@ struct list_el
 
 typedef struct list_el item;
 item * start, *end , *current;
-int indx=0;
+int indx=0,isHist=0;
 
 void addElem(char *p)
 {
@@ -48,7 +48,7 @@ void addElem(char *p)
     end = list ;
     end->next=start;
     start->prev =end ;
-    current=end;
+    current=start;
 }
 
 void printAll()
@@ -76,23 +76,39 @@ int processComm(char * in)
 
     return 0;
 }
-
-int validChars(char *in)
+int supress=0;
+int validChars(int c)
 {
-    int l=strlen(in);
-//    printf("%d",in[l-1]);
-
-    if(in[l-1]==27||in[l-2]==27||in[l-3]==27)
-        return 0;
-
-    switch(in[l-1])
+    if(c==27)
     {
-    case 127:
-    case 9:
+        supress=1;
+        return 0;
+    }
+
+    if(c==91 && supress)
+    {
+        supress=1;
+        return 0;
+    }
+
+    if(supress){
+        supress--;
         return 0;
     }
 
     return 1;
+}
+
+void printChars(char *s)
+{
+    int i=0;
+    printf("\n");
+    for(; i<=strlen(s); i++)
+        printf("%d\t",s[i]);
+    printf("\n");
+    for(i=0; i<=strlen(s); i++)
+        printf("%c\t",s[i]);
+//    printf("\n");
 }
 
 void readTerminal(char *in)
@@ -103,42 +119,68 @@ void readTerminal(char *in)
     {
         int l = strlen(in) ;
         c=getch();
-        if(c== '\b')
-        {
-//            printf("\033[D ");
-            continue;
-        }
         if(c== '\n')
         {
             printf("\n");
+            isHist=0;
             break;
         }
+        else if(c== 127)
+        {
+            if(l>0)
+            {
+                printf("\033[D \033[D");
+                in[l-1]='\0';
+            }
+        }
+        else
+        {
+            in[l]=c;
+            in[l+1]='\0';
+            if(validChars(c))
+                printf("%c",c);
+        }
 
-        in[l]=c;
-        in[l+1]='\0';
-
+//        printf("_%d_",c);
         if( in[l-2]==27 && in[l-1]==91 )
         {
-            if(in[l-0]==65 && indx>0)//sus
-                current=current->prev;
-            if(in[l-0]==66&& indx>0)//jos
-                current=current->next;
-            if(in[l-0]==67)//dreapta
-                printf("\033[C");
-            if(in[l-0]==68)//stanga
-                printf("\033[D");
-
-            if((in[l-0]==66 || in[l]==65)&& indx>0)
+            if((in[l]==66 || in[l]==65) &&indx>0 )
             {
-                printf("\033[u             \033[u%s",current->comm);
-            }
+                if(isHist==0)
+                {
+                    isHist=1;
+                in[l-2]='\0';
+                in[l-1]='\0';
+                in[l-0]='\0';
+                    if(strlen(in)>0)
+                        addElem(in);
+                    end=end->prev;
+                }
 
-            in[l-2]='\0';
-            in[l-1]='\0';
-            in[l-0]='\0';
+                if(in[l-0]==65 && indx>0)//sus
+                    current=current->prev;
+                if(in[l-0]==66&& indx>0)//jos
+                    current=current->next;
+
+                printf("\033[u");
+                int sp=0;
+                for(; sp<MAX_COMM*5; sp++)
+                    printf(" ");
+//                printf("\0");
+
+                printf("\033[u%s",current->comm);
+                strcpy(in,current->comm);
+//                printChars(in);
+//                printChars(current->comm);
+
+            }
+            else
+            {
+                in[l-2]='\0';
+                in[l-1]='\0';
+                in[l-0]='\0';
+            }
         }
-        else if(validChars(in))
-            printf("%c",c);
     }
 }
 
@@ -153,26 +195,27 @@ int main()
     {
         fprintf(stdout,SIM_COMM "\033[s" );
         readTerminal(in);
+//        printChars(in);
         if(strlen(in)>0)
             addElem(in);
         processComm(in);
     }
+
+
+
     /** DONE
     *   + add commands to a list , !hst to show
-    up/down show hystory
-    */
-
-    /* TODO
-    *
+    *   up/down show hystory
     *|   fix backspace
     *|   separate printable charset from special/escape charset
     *   execute the history command
     *   make better : harcoded spaces added after showing shorter history command
     *   add entered history as new command
+    */
+
+    /* TODO
+    *
     *   add external commands support
-    *
-    *
-    *
     *
     */
 
