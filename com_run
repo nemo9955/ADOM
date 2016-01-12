@@ -1,5 +1,5 @@
 #!/bin/bash
 
-gcc -o adom adom.c && ./adom
+gcc -o adom adom.c -lreadline  && ./adom
 
 exit 
