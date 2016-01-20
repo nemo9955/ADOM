@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include <readline/readline.h>
 #include <readline/history.h>
@@ -67,6 +68,40 @@ void printAll()
     }
 }
 
+char * wordAfter(char *fl,char *com)
+{
+    int fll = strlen(fl);
+    char *st = strstr(com,fl);
+
+    if(st == NULL)
+    {
+        //printf("_%s_",st);
+        return '\0';
+    }
+
+    st+=fll;
+    int i=0;
+    if(st[0]=='\"')
+    {
+        st++;
+        for(i=0; i<strlen(st); i++)
+            if(st[i]=='\"'){
+                break;
+            }
+    }
+    else
+    {
+        for(; i<strlen(st); i++)
+            if(st[i]==' ')
+                break;
+    }
+
+    char * word = (char*) malloc((i+1) * sizeof(char));
+    strncpy(word,st,i);
+    word[i]='\0';
+    return word ;
+}
+
 int processComm(char *in)
 {
     if(strcmp(in,"!hst")==0)
@@ -78,9 +113,54 @@ int processComm(char *in)
         return 1;
     }
 
+    if(strcmp(in,"!hst")==0)
+    {
+        printf(KRED "Commands :\n" KNRM);
+        printf("!exit - quits the console\n" KNRM);
+        printf("!hst - shows the current sesion history\n" KNRM);
+    }
+
+    //!nl adom.c -s
+    char *nl = wordAfter("!nl ",in) ;
+    if( nl )
+    {
+        char *sep = "\t";
+        char *s = wordAfter(" -s ",in);
+        if(s)
+        {
+            sep=s;
+        }
+        char *d= wordAfter(" -d ",in);
+        if(d)
+        {
+            printf("+++");
+        }
+
+        char * line = NULL;
+        size_t len = 0;
+        ssize_t read;
+
+        FILE * fp= fopen(nl, "r");
+        if (fp == NULL)
+        {
+            printf("No sutch file : %s",nl);
+            return 0;
+        }
+        int i=1;
+        while ((read = getline(&line, &len, fp)) != -1)
+        {
+            //printf("Retrieved line of length %zu :\n", read);
+            printf("%d%s%s",i,sep, line);
+            i++;
+        }
+
+        fclose(fp);
+        if (line)
+            free(line);
+    }
+
     return 0;
 }
-
 
 void printChars(char *s)
 {
@@ -93,9 +173,6 @@ void printChars(char *s)
         printf("%c\t",s[i]);
 //    printf("\n");
 }
-
-
-
 
 /* Read a string, and return a pointer to it.  Returns NULL on EOF. */
 char * rl_gets ()
@@ -128,7 +205,8 @@ int main()
     //clear the screen  -  updated cursor movcement from http://www.tldp.org/HOWTO/Bash-Prompt-HOWTO/x361.html
     fprintf(stdout,"\033[2J" OO_COMM);
     char *in;
-    do{
+    do
+    {
         in = rl_gets();
         processComm(in);
     }
