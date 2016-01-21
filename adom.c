@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
+#include <math.h>
 
 #include <readline/readline.h>
 #include <readline/history.h>
@@ -80,12 +80,17 @@ char * wordAfter(char *fl,char *com)
     }
 
     st+=fll;
+
+    if(st[0]=='\0' || st[0]=='\n' || st[0]=='-')
+        return 1;
+
     int i=0;
     if(st[0]=='\"')
     {
         st++;
         for(i=0; i<strlen(st); i++)
-            if(st[i]=='\"'){
+            if(st[i]=='\"')
+            {
                 break;
             }
     }
@@ -100,6 +105,29 @@ char * wordAfter(char *fl,char *com)
     strncpy(word,st,i);
     word[i]='\0';
     return word ;
+}
+
+int strToInt(char *s)
+{
+    int r=0;
+    int l= strlen(s);
+    int i,z=1;
+            printf("%s| %d \n",s,l);
+
+    for(i=l-1 ; i>0 ; i--)
+    {
+        if(s[i]>'0'&&s[i]<'9')
+        {
+            int n=s[i]-'0';
+            printf("%d_",n);
+            r+=n*pow(10,z);
+            z++;
+        }
+        if(s[i]=='-')
+        {
+            r*=-1;
+        }
+    }
 }
 
 int processComm(char *in)
@@ -120,6 +148,23 @@ int processComm(char *in)
         printf("!hst - shows the current sesion history\n" KNRM);
     }
 
+    char *head = wordAfter("!head ",in) ;
+    if(head)
+    {
+        int pr=0 , type=1 , lun=10;
+        char *v = wordAfter(" -v ",in) ;
+        if(v)pr=1;
+        char *q = wordAfter(" -q ",in) ;
+        if(q)pr=-1;
+
+        char *n = wordAfter(" -n ",in) ;
+        if(n){
+//            printf(" %s /",n);
+            printf(" %d ",strToInt(n));
+        }
+
+    }
+
     //!nl adom.c -s
     char *nl = wordAfter("!nl ",in) ;
     if( nl )
@@ -130,10 +175,11 @@ int processComm(char *in)
         {
             sep=s;
         }
+        char *pag = "\:\:\:";
         char *d= wordAfter(" -d ",in);
         if(d)
         {
-            printf("+++");
+            pag=d;
         }
 
         char * line = NULL;
@@ -146,12 +192,30 @@ int processComm(char *in)
             printf("No sutch file : %s",nl);
             return 0;
         }
-        int i=1;
+        int i=1,npg=1;
+        printf("\t---------------,page %d---------------\n\n",npg);
         while ((read = getline(&line, &len, fp)) != -1)
         {
             //printf("Retrieved line of length %zu :\n", read);
-            printf("%d%s%s",i,sep, line);
-            i++;
+            if(strlen(line)>1)
+            {
+                printf("%d%s%s",i,sep, line);
+                i++;
+            }
+            else
+            {
+                printf("%s", line);
+            }
+
+            if(strstr(line, pag) != NULL)
+            {
+                i=1;
+                npg++;
+                printf("\n\t---------------,page %d---------------\n\n",npg);
+
+            }
+
+
         }
 
         fclose(fp);
@@ -199,7 +263,6 @@ char * rl_gets ()
     return in;
 }
 
-
 int main()
 {
     //clear the screen  -  updated cursor movcement from http://www.tldp.org/HOWTO/Bash-Prompt-HOWTO/x361.html
@@ -211,14 +274,6 @@ int main()
         processComm(in);
     }
     while(strcmp(in,EXIT_COMM));
-
-
-    /* TODO
-    *
-    *   add external commands support
-    *   implement internally the specified commands
-    *
-    */
 
     return 0;
 }
