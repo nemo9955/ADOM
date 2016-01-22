@@ -68,70 +68,89 @@ void printAll()
     }
 }
 
-char * wordAfter(char *fl,char *com)
+char * wordAfterIndex(char *fl,char *com,int ind)
 {
     int fll = strlen(fl);
     char *st = strstr(com,fl);
 
     if(st == NULL)
-    {
-        //printf("_%s_",st);
         return '\0';
-    }
+    st+=fll-1;
 
-    st+=fll;
+    if(st[0]=='\0' )
+        return "1";
 
-    if(st[0]=='\0' || st[0]=='\n' || st[0]=='-')
-        return 1;
-
-    int i=0;
-    if(st[0]=='\"')
+    int i=0,down=ind;
+    do
     {
-        st++;
+        if(strlen(st) == 0)break;
+
+        down--;
+        st+=i;
+        st++;//+1 to delete the leading space
+//    printf("+%c+\n",st[0]);
+        char chh = ' ';
+        if(st[0]=='\"')
+        {
+            chh='\"';
+            st++;
+        }
+        if(st[0]=='\'')
+        {
+            chh='\'';
+            st++;
+        }
+
+
         for(i=0; i<strlen(st); i++)
-            if(st[i]=='\"')
-            {
+            if(st[i]==chh )
                 break;
-            }
+
+
+//        printf("+%s+\n\n",st);
     }
-    else
-    {
-        for(; i<strlen(st); i++)
-            if(st[i]==' ')
-                break;
-    }
+    while(down >= 0 );
+//    printf("-%d %s-\n",i,st);
 
     char * word = (char*) malloc((i+1) * sizeof(char));
     strncpy(word,st,i);
     word[i]='\0';
     return word ;
+
+}
+char * wordAfter(char *fl,char *com)
+{
+    return wordAfterIndex(fl,com,0);
 }
 
 int strToInt(char *s)
 {
     int r=0;
     int l= strlen(s);
-    int i,z=1;
-            printf("%s| %d \n",s,l);
+    int i,z=0;
+//            printf("%s| %d \n",s,l);
 
-    for(i=l-1 ; i>0 ; i--)
+    for(i=l-1 ; i>=0 ; i--)
     {
-        if(s[i]>'0'&&s[i]<'9')
+        if(s[i]>='0'&&s[i]<='9')
         {
             int n=s[i]-'0';
-            printf("%d_",n);
-            r+=n*pow(10,z);
+//            printf("%d_",n);
+            r+=n*( (int)pow(10,z));
             z++;
         }
         if(s[i]=='-')
-        {
-            r*=-1;
-        }
+            r*=-1.0;
     }
+    return (int)r;
 }
 
 int processComm(char *in)
 {
+    if(strcmp(in,"!clear")==0)
+    {
+        printf("\033[2J" OO_COMM);
+    }
     if(strcmp(in,"!hst")==0)
     {
         printf(KRED);
@@ -141,28 +160,126 @@ int processComm(char *in)
         return 1;
     }
 
-    if(strcmp(in,"!hst")==0)
+    if(strcmp(in,"!help")==0)
     {
         printf(KRED "Commands :\n" KNRM);
-        printf("!exit - quits the console\n" KNRM);
-        printf("!hst - shows the current sesion history\n" KNRM);
+        printf("Format : command [file 1] ... [file n] [param 1] ... [param n]\n" );
+        printf("!exit - quits the console\n" );
+        printf("!hst - shows the current sesion history\n" );
+        printf("!clear - clears the console\n" );
+
+        printf("!nl - numbers the lines\n" );
+        printf("\t-s - number separator\n" );
+        printf("\t-d - page delimiter\n" );
+
+        printf("!head - prints first part of file\n" );
+        printf("\t-n - first lines, \"-\" excludes the last lines\n" );
+        printf("\t-c - first bytes, \"-\" excludes the last lines\n" );
+        printf("\t-q - don't print file name\n" );
+        printf("\t-v - always print file name\n" );
+
     }
+
+//    int qq;
+//    for(qq=0;qq<5;qq++)
+//        printf("_%s_\n", wordAfterIndex("!head ",in,qq));
 
     char *head = wordAfter("!head ",in) ;
     if(head)
     {
-        int pr=0 , type=1 , lun=10;
-        char *v = wordAfter(" -v ",in) ;
-        if(v)pr=1;
-        char *q = wordAfter(" -q ",in) ;
-        if(q)pr=-1;
+        int pr=0 , type=1 , lun=10 ;
+        char *q = wordAfter(" -q",in) ;
+        char *v = wordAfter(" -v",in) ;
+        if(q&&v)
+        {
+            printf("only one of attributes -v and -q can be used on same command !\n");
+            return 1;
+        }
+        if(v || !strchr("- \n\0",wordAfterIndex("!head ",in,1)[0] )  ) pr=1;
+        if(q)pr=0;
 
         char *n = wordAfter(" -n ",in) ;
-        if(n){
-//            printf(" %s /",n);
-            printf(" %d ",strToInt(n));
+        char *c = wordAfter(" -c ",in) ;
+        if(n&&c)
+        {
+            printf("only one of attributes -n and -b can be used on same command !\n");
+            return 1;
         }
 
+        if(n)
+            lun = strToInt(n);
+
+        if(c)
+        {
+            type=2;
+            lun = strToInt(c);
+        }
+
+
+        int wrd =0 ;
+        while(head = wordAfterIndex("!head ",in,wrd++))
+        {
+            FILE *fp = fopen(head, "rb");
+
+            if (fp == NULL)
+            {
+//                printf("========%s\n",head);
+                break;
+            }
+//            printf("++%s++",head);
+
+            if(pr)
+                printf("\t =======> %s <=======\n\n",head);
+
+            fseek(fp, 0, SEEK_END);
+            long endByte = ftell(fp);
+            fseek(fp, 0, SEEK_SET);
+
+            if(type==2)
+            {
+
+//                printf("_%d_\n",lun);
+//                printf("_%lu_\n",endByte);
+                if(lun > 0)endByte=lun;
+                if(lun < 0) endByte+=lun;
+                if(endByte<0)endByte=0;
+
+//                printf("_%lu_\n",endByte);
+
+                char *string = malloc(endByte + 1);
+                fread(string, endByte, 1, fp);
+                string[endByte] = 0;
+                printf("%s\n",string);
+            }
+
+
+            if(type==1)
+            {
+                char *s = malloc(endByte + 1);
+                fread(s, endByte, 1, fp);
+                s[endByte] = '\0';
+//                printf("%s\n",head);
+                int i=0,con=0;
+                for(i=0; i<strlen(s); i++)
+                    if(s[i] == '\n')
+                        con++;
+
+                if(lun > 0)con=lun;
+                if(lun < 0) con+=lun;
+                if(con<0)con=0;
+
+                i=0;
+                while(con > 0 )
+                {
+                    if(s[i]=='\0')break;
+                    printf("%c",s[i++]);
+                    if(s[i]=='\n')con--;
+                }
+                printf("\n");
+
+            }
+            fclose(fp);
+        }
     }
 
     //!nl adom.c -s
@@ -172,57 +289,47 @@ int processComm(char *in)
         char *sep = "\t";
         char *s = wordAfter(" -s ",in);
         if(s)
-        {
             sep=s;
-        }
         char *pag = "\:\:\:";
         char *d= wordAfter(" -d ",in);
         if(d)
-        {
             pag=d;
-        }
 
-        char * line = NULL;
-        size_t len = 0;
-        ssize_t read;
 
-        FILE * fp= fopen(nl, "r");
-        if (fp == NULL)
+        int wrd =0 ;
+        while(nl = wordAfterIndex("!nl ",in,wrd++))
         {
-            printf("No sutch file : %s",nl);
-            return 0;
+
+            char * line = NULL;
+            size_t len = 0;
+            ssize_t read;
+            FILE * fp= fopen(nl, "r");
+            if (fp == NULL)
+            {
+                printf("No sutch file : %s",nl);
+                return 0;
+            }
+            int i=1,npg=1;
+            printf("\t---------------,page %d---------------\n\n",npg);
+            while ((read = getline(&line, &len, fp)) != -1)
+            {
+                //printf("Retrieved line of length %zu :\n", read);
+                if(strlen(line)>1)
+                    printf("%d%s%s",i++,sep, line);
+                else
+                    printf("%s", line);
+                if(strstr(line, pag) != NULL)
+                {
+                    i=1;
+                    printf("\n\t---------------,page %d---------------\n\n",npg++);
+                }
+            }
+            fclose(fp);
+            if (line)
+                free(line);
+                printf("\n");
         }
-        int i=1,npg=1;
-        printf("\t---------------,page %d---------------\n\n",npg);
-        while ((read = getline(&line, &len, fp)) != -1)
-        {
-            //printf("Retrieved line of length %zu :\n", read);
-            if(strlen(line)>1)
-            {
-                printf("%d%s%s",i,sep, line);
-                i++;
-            }
-            else
-            {
-                printf("%s", line);
-            }
-
-            if(strstr(line, pag) != NULL)
-            {
-                i=1;
-                npg++;
-                printf("\n\t---------------,page %d---------------\n\n",npg);
-
-            }
-
-
-        }
-
-        fclose(fp);
-        if (line)
-            free(line);
     }
-
     return 0;
 }
 
