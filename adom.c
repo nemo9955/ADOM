@@ -345,10 +345,8 @@ void printChars(char *s)
 //    printf("\n");
 }
 
-/* Read a string, and return a pointer to it.  Returns NULL on EOF. */
 char * rl_gets ()
 {
-    /* A static variable for holding the line. */
     char *in = (char *)NULL;
     /* If the buffer has already been allocated, return the memory
        to the free pool. */
