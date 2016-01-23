@@ -4,10 +4,8 @@
 #include <math.h>
 
 #include <sys/types.h>
-#include <unistd.h>
 #include <sys/wait.h>
-#include <stddef.h>
-#include <stdlib.h>
+#include <unistd.h>
 
 #include <readline/readline.h>
 #include <readline/history.h>
@@ -26,7 +24,6 @@
 //http://www.linuxjournal.com/article/8603
 
 #define MAX_COMM 200 //maximum command length
-#define EXIT_COMM "!exit" //the comannd to initiate exit
 #define OO_COMM "\033[0;0H" // sets the cursor at 0 0 in the terminal
 #define SIM_COMM  KCYN " #! " KNRM // the "enter command" simbol thingy
 
@@ -346,8 +343,6 @@ int processComm(char *in)
     return 0;
 }
 
-
-#define SHELL "/bin/sh"
 void externalComm(char *ex)
 {
     pid_t pid;
@@ -371,7 +366,6 @@ void externalComm(char *ex)
         int stat ;
         dup2(ppe[1],stdout);//schimbam capetele pipe-ului
         close(ppe[0]);//inchidem inputul de la pipe
-        setvbuf(stdout,(char*)NULL,_IONBF,0);	// d p net ca sa faca stdot non-buffered
         waitpid (pid, &stat, 0);	//asteapta dupa copil !
 //        printf("/nchild stat : %d\n",stat);
     }
@@ -379,10 +373,8 @@ void externalComm(char *ex)
     {
         dup2(ppe[0],stdin);
         close(ppe[1]);//inchidem output-ul de la pipe
-        execl(SHELL, SHELL, "-c",ex,NULL)
-//        if(execl(concat("/bin/",wordAfterIndex(NULL,ex,0)),ex,NULL) == -1)
-//            if(execl(wordAfterIndex(NULL,ex,0),ex,NULL) == -1)
-
+        execl("/bin/bash","/bin/bash", "-c",ex,NULL);
+        execl("/bin/sh","/bin/sh", "-c",ex,NULL);
         printf("Eroare la execl():42\n");
         exit(42);
     }
@@ -400,16 +392,9 @@ void printChars(char *s)
 //    printf("\n");
 }
 
-char * rl_gets ()
+char * readLine ()
 {
-    char *in = (char *)NULL;
-    /* If the buffer has already been allocated, return the memory
-       to the free pool. */
-    if (in)
-    {
-        free (in);
-        in = (char *)NULL;
-    }
+    char *in ;
 
     /* Get a line from the user. */
     in = readline (SIM_COMM "\033[s" );
@@ -430,11 +415,11 @@ int main()
     char *in;
     do
     {
-        in = rl_gets();
+        in = readLine();
         if(!processComm(in))
             externalComm(in);
     }
-    while(strcmp(in,EXIT_COMM));
+    while(strcmp(in,"!exit"));
 
     return 0;
 }
