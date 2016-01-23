@@ -5,6 +5,9 @@
 
 #include <sys/types.h>
 #include <unistd.h>
+#include <sys/wait.h>
+#include <stddef.h>
+#include <stdlib.h>
 
 #include <readline/readline.h>
 #include <readline/history.h>
@@ -78,7 +81,10 @@ char * wordAfterIndex(char *fl,char *com,int ind)
 
     if(st == NULL)
         return '\0';
-    st+=fll-1;
+
+    if(fll>0)
+        st+=fll-1;
+
 
     if(st[0]=='\0' )
         return "1";
@@ -341,6 +347,7 @@ int processComm(char *in)
 }
 
 
+#define SHELL "/bin/sh"
 void externalComm(char *ex)
 {
     pid_t pid;
@@ -361,24 +368,24 @@ void externalComm(char *ex)
     //parintele
     if(pid>0)
     {
-        dup2(ppe[1],1);//schimbam capetele pipe-ului
-        close(ppe[0]);//inchidem capele care nu trebuie
+        int stat ;
+        dup2(ppe[1],stdout);//schimbam capetele pipe-ului
+        close(ppe[0]);//inchidem inputul de la pipe
         setvbuf(stdout,(char*)NULL,_IONBF,0);	// d p net ca sa faca stdot non-buffered
-        printf("Hello !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1\n");
-        wait(NULL);	//asteapta dupa copil !
+        waitpid (pid, &stat, 0);	//asteapta dupa copil !
+//        printf("/nchild stat : %d\n",stat);
     }
     else//copchilul
     {
-        dup2(ppe[0],0);
-        close(ppe[1]);//vezi la parinte
-        if(execl("adom","adom",NULL) == -1)
-        {
-            printf("Eroare la execl():42\n");
-            exit(42);
-        }
-        printf("COPILLLLLLLL !!!!1");
+        dup2(ppe[0],stdin);
+        close(ppe[1]);//inchidem output-ul de la pipe
+        execl(SHELL, SHELL, "-c",ex,NULL)
+//        if(execl(concat("/bin/",wordAfterIndex(NULL,ex,0)),ex,NULL) == -1)
+//            if(execl(wordAfterIndex(NULL,ex,0),ex,NULL) == -1)
+
+        printf("Eroare la execl():42\n");
+        exit(42);
     }
-        exit(0);
 }
 
 void printChars(char *s)
