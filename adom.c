@@ -3,6 +3,9 @@
 #include <string.h>
 #include <math.h>
 
+#include <sys/types.h>
+#include <unistd.h>
+
 #include <readline/readline.h>
 #include <readline/history.h>
 
@@ -150,6 +153,7 @@ int processComm(char *in)
     if(strcmp(in,"!clear")==0)
     {
         printf("\033[2J" OO_COMM);
+        return 1;
     }
     if(strcmp(in,"!hst")==0)
     {
@@ -178,6 +182,7 @@ int processComm(char *in)
         printf("\t-q - don't print file name\n" );
         printf("\t-v - always print file name\n" );
 
+        return 1;
     }
 
 //    int qq;
@@ -280,6 +285,7 @@ int processComm(char *in)
             }
             fclose(fp);
         }
+        return 1;
     }
 
     //!nl adom.c -s
@@ -327,10 +333,52 @@ int processComm(char *in)
             fclose(fp);
             if (line)
                 free(line);
-                printf("\n");
+            printf("\n");
         }
+        return 1;
     }
     return 0;
+}
+
+
+void externalComm(char *ex)
+{
+    pid_t pid;
+    int	ppe[2];//pipe pentru a prelua output-ul procesului nou creat
+
+    if(pipe(ppe))
+    {
+        printf("Eroare la pipe(ppe)\n");
+        return ;
+    }
+
+    if( (pid=fork()) == -1)
+    {
+        printf("Eroare la fork()\n");
+        return ;
+    }
+
+    //parintele
+    if(pid>0)
+    {
+        dup2(ppe[1],1);//schimbam capetele pipe-ului
+        close(ppe[0]);//inchidem capele care nu trebuie
+        setvbuf(stdout,(char*)NULL,_IONBF,0);	// d p net ca sa faca stdot non-buffered
+        printf("Hello !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1\n");
+        wait(NULL);	//asteapta dupa copil !
+    }
+    else//copchilul
+    {
+        dup2(ppe[0],0);
+        close(ppe[1]);//vezi la parinte
+        if(execl("adom","adom",NULL) == -1)
+        {
+            printf("Eroare la execl():42\n");
+            exit(42);
+        }
+        printf("COPILLLLLLLL !!!!1");
+    }
+        exit(0);
 }
 
 void printChars(char *s)
@@ -376,7 +424,8 @@ int main()
     do
     {
         in = rl_gets();
-        processComm(in);
+        if(!processComm(in))
+            externalComm(in);
     }
     while(strcmp(in,EXIT_COMM));
 
