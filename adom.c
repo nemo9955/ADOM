@@ -20,19 +20,13 @@
 #define KWHT  "\x1B[37m"
 #define KNRM  "\x1B[0m"
 
-//will add some more
-//http://www.linuxjournal.com/article/8603
-
-#define MAX_COMM 200 //maximum command length
 #define OO_COMM "\033[0;0H" // sets the cursor at 0 0 in the terminal
 #define SIM_COMM  KCYN " #! " KNRM // the "enter command" simbol thingy
-
-
 
 struct list_el
 {
     int index;
-    char comm[MAX_COMM];
+    char comm[1000];
     struct list_el *next,*prev;
 };
 
@@ -81,7 +75,6 @@ char * wordAfterIndex(char *fl,char *com,int ind)
 
     if(fll>0)
         st+=fll-1;
-
 
     if(st[0]=='\0' )
         return "1";
@@ -151,13 +144,19 @@ int strToInt(char *s)
     return (int)r;
 }
 
-int processComm(char *in)
+int clearCOMM(char *in)
 {
     if(strcmp(in,"!clear")==0)
     {
         printf("\033[2J" OO_COMM);
         return 1;
     }
+    return 0;
+}
+
+int historyCOMM(char *in)
+{
+
     if(strcmp(in,"!hst")==0)
     {
         printf(KRED);
@@ -166,6 +165,11 @@ int processComm(char *in)
         printf("\n");
         return 1;
     }
+
+    return 0;
+}
+int helpCOMM(char *in)
+{
 
     if(strcmp(in,"!help")==0)
     {
@@ -188,9 +192,31 @@ int processComm(char *in)
         return 1;
     }
 
-//    int qq;
-//    for(qq=0;qq<5;qq++)
-//        printf("_%s_\n", wordAfterIndex("!head ",in,qq));
+    return 0;
+}
+
+
+int chrootCOMM(char *in)
+{
+
+    char *chr = wordAfter("!chroot ",in) ;
+    if(chr)
+    {
+        int result = chroot(chr);
+
+        if(result == -1)
+        {
+            printf("Chroot a esuat :%s.\n",chr);
+        }
+        return 1;
+    }
+
+    return 0;
+}
+
+
+int headCOMM(char *in)
+{
 
     char *head = wordAfter("!head ",in) ;
     if(head)
@@ -290,8 +316,11 @@ int processComm(char *in)
         }
         return 1;
     }
+    return 0;
+}
 
-    //!nl adom.c -s
+int nlCOMM(char *in)
+{
     char *nl = wordAfter("!nl ",in) ;
     if( nl )
     {
@@ -340,7 +369,40 @@ int processComm(char *in)
         }
         return 1;
     }
+
     return 0;
+}
+
+int processComm(char *in)
+{
+    if(clearCOMM(in))return 1;
+    if(historyCOMM(in))return 1;
+    if(helpCOMM(in))return 1;
+    if(headCOMM(in))return 1;
+    if(nlCOMM(in))return 1;
+    if(chrootCOMM(in))return 1;
+
+    return 0;
+}
+
+char* concatenate(char *s1, char *s2)
+{
+    char *r = malloc(strlen(s1)+strlen(s2)+1);
+    strcpy(r, s1);
+    strcat(r, s2);
+    return r;
+}
+
+char* getFirstWord(char*in)
+{
+    int i;
+    for(i=0; i<strlen(in); i++)
+        if(in[i]==' ')
+            break;
+    char * word = malloc(i+1);
+    strncpy(word,in,i);
+    word[i]=0;
+    return word ;
 }
 
 void externalComm(char *ex)
@@ -348,11 +410,11 @@ void externalComm(char *ex)
     pid_t pid;
     int	ppe[2];//pipe pentru a prelua output-ul procesului nou creat
 
-    if(pipe(ppe))
-    {
-        printf("Eroare la pipe(ppe)\n");
-        return ;
-    }
+//    if(pipe(ppe))
+//    {
+//        printf("Eroare la pipe(ppe)\n");
+//        return ;
+//    }
 
     if( (pid=fork()) == -1)
     {
@@ -364,18 +426,26 @@ void externalComm(char *ex)
     if(pid>0)
     {
         int stat ;
-        dup2(ppe[1],stdout);//schimbam capetele pipe-ului
-        close(ppe[0]);//inchidem inputul de la pipe
+//        dup2(ppe[1],stdout);//schimbam capetele pipe-ului
+//        close(ppe[0]);//inchidem inputul de la pipe
         waitpid (pid, &stat, 0);	//asteapta dupa copil !
 //        printf("/nchild stat : %d\n",stat);
     }
     else//copchilul
     {
-        dup2(ppe[0],stdin);
-        close(ppe[1]);//inchidem output-ul de la pipe
+//        dup2(ppe[0],stdin);
+//        close(ppe[1]);//inchidem output-ul de la pipe
+
+        char* com = getFirstWord(ex);
+
+        execl( concatenate("/bin/",com), ex  ,NULL  );
+        execl( concatenate("",com), ex  ,NULL  );
+        printf("FallBack !\n");
+
         execl("/bin/bash","/bin/bash", "-c",ex,NULL);
         execl("/bin/sh","/bin/sh", "-c",ex,NULL);
-        printf("Eroare la execl():42\n");
+
+        printf("Eroare la execl()\n");
         exit(42);
     }
 }
