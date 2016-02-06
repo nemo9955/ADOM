@@ -5,7 +5,9 @@
 
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <sys/stat.h>
 #include <unistd.h>
+#include <fcntl.h>
 
 #include <readline/readline.h>
 #include <readline/history.h>
@@ -188,6 +190,8 @@ int helpCOMM(char *in)
         printf("\t-c - first bytes, \"-\" excludes the last lines\n" );
         printf("\t-q - don't print file name\n" );
         printf("\t-v - always print file name\n" );
+
+        printf("!chroot - does not return a error if with sudo\n" );
 
         return 1;
     }
@@ -408,8 +412,8 @@ char* getFirstWord(char*in)
 void externalComm(char *ex)
 {
     pid_t pid;
-    int	ppe[2];//pipe pentru a prelua output-ul procesului nou creat
 
+//    int	ppe[2];//pipe pentru a prelua output-ul procesului nou creat
 //    if(pipe(ppe))
 //    {
 //        printf("Eroare la pipe(ppe)\n");
@@ -438,9 +442,13 @@ void externalComm(char *ex)
 
         char* com = getFirstWord(ex);
 
+        execlp( com, ex  ,NULL  );
+
+        printf("FallBack 1/2 !\n");
         execl( concatenate("/bin/",com), ex  ,NULL  );
         execl( concatenate("",com), ex  ,NULL  );
-        printf("FallBack !\n");
+        execl( concatenate("./",com), ex  ,NULL  );
+        printf("FallBack 2/2 !\n");
 
         execl("/bin/bash","/bin/bash", "-c",ex,NULL);
         execl("/bin/sh","/bin/sh", "-c",ex,NULL);
@@ -478,6 +486,8 @@ char * readLine ()
     return in;
 }
 
+//char ** splitString
+
 int main()
 {
     //clear the screen  -  updated cursor movcement from http://www.tldp.org/HOWTO/Bash-Prompt-HOWTO/x361.html
@@ -486,8 +496,45 @@ int main()
     do
     {
         in = readLine();
-        if(!processComm(in))
-            externalComm(in);
+
+        FILE *f;
+        char * rin,*toOutput = NULL , *forFree;
+        toOutput = forFree = strdup(in);
+
+
+        int origOut,origErr;
+        rin = strsep(&toOutput , ">");
+
+
+        if(toOutput)
+        {
+        if(rin[strlen(rin)-1]==' ')rin[strlen(rin)-1]=0;
+        if(toOutput[0]==' ')strcpy(toOutput,toOutput+1);
+            origOut = dup(fileno(stdout));
+            origErr = dup(fileno(stderr));
+            f = open(concatenate("!",toOutput),O_WRONLY|O_CREAT,0666);
+            dup2(f,fileno(stdout));
+            dup2(f,fileno(stderr));
+        }
+
+
+//        printf("%s\n",toOutput);//the remaining
+//        printf("%s\n",redir);//the first element
+
+        if(!processComm(rin))
+            externalComm(rin);
+
+        if(toOutput)
+        {
+            fflush(stdout);
+            fflush(stderr);
+            close(f);
+            dup2(origOut, fileno(stdout));
+            dup2(origErr, fileno(stderr));
+            close(origOut);
+            close(origErr);
+        }
+        free(forFree);
     }
     while(strcmp(in,"!exit"));
 
